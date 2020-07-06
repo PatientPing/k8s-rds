@@ -233,9 +233,22 @@ func toTags(annotations, labels map[string]string) []rds.Tag {
 	return tags
 }
 
-func convertSpecToInput(v *crd.Database, subnetName string, securityGroups []string, password string) *rds.CreateDBInstanceInput {
+func gettags(db *crd.Database) []rds.Tag {
+	tags := []rds.Tag{}
+	if db.Spec.Tags == "" {
+		return tags
+	}
+	for _, v := range strings.Split(db.Spec.Tags, ",") {
+		kv := strings.Split(v, "=")
 
+		tags = append(tags, rds.Tag{Key: aws.String(strings.TrimSpace(kv[0])), Value: aws.String(strings.TrimSpace(kv[1]))})
+	}
+	return tags
+}
+
+func convertSpecToInput(v *crd.Database, subnetName string, securityGroups []string, password string) *rds.CreateDBInstanceInput {
 	tags := toTags(v.Annotations, v.Labels)
+	tags = append(tags, gettags(v)...)
 
 	input := &rds.CreateDBInstanceInput{
 		DBName:                aws.String(v.Spec.DBName),
@@ -253,6 +266,9 @@ func convertSpecToInput(v *crd.Database, subnetName string, securityGroups []str
 		BackupRetentionPeriod: aws.Int64(v.Spec.BackupRetentionPeriod),
 		DeletionProtection:    aws.Bool(v.Spec.DeleteProtection),
 		Tags:                  tags,
+	}
+	if v.Spec.Version != "" {
+		input.EngineVersion = aws.String(v.Spec.Version)
 	}
 	if v.Spec.StorageType != "" {
 		input.StorageType = aws.String(v.Spec.StorageType)

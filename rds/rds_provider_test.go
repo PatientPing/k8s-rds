@@ -21,6 +21,7 @@ func TestConvertSpecToInput(t *testing.T) {
 			PubliclyAccessible: true,
 			StorageEncrypted:   true,
 			StorageType:        "bad",
+			Version:            "9.6",
 			Iops:               1000,
 			Password:           v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "password"}, Key: "mypassword"},
 		},
@@ -38,9 +39,10 @@ func TestConvertSpecToInput(t *testing.T) {
 	assert.Equal(t, 2, len(i.VpcSecurityGroupIds))
 	assert.Equal(t, "bad", *i.StorageType)
 	assert.Equal(t, int64(1000), *i.Iops)
+	assert.Equal(t, "9.6", *i.EngineVersion)
 }
 
-func TestgetIDFromProvider(t *testing.T) {
+func TestGetIDFromProvider(t *testing.T) {
 	x := getIDFromProvider("aws:///eu-west-1a/i-02ab67f4da79c3caa")
 	assert.Equal(t, "i-02ab67f4da79c3caa", x)
 }
@@ -123,4 +125,35 @@ func TestToTags(t *testing.T) {
 		}
 
 	}
+}
+
+func TestTags(t *testing.T) {
+	db := &crd.Database{
+		Spec: crd.DatabaseSpec{
+			Tags: "key=value,key1=value1",
+		},
+	}
+	tags := gettags(db)
+	assert.NotNil(t, tags)
+	assert.Equal(t, 2, len(tags))
+	assert.Equal(t, "key", *tags[0].Key)
+	assert.Equal(t, "value", *tags[0].Value)
+	assert.Equal(t, "key1", *tags[1].Key)
+	assert.Equal(t, "value1", *tags[1].Value)
+
+}
+func TestTagsWithSpaces(t *testing.T) {
+	db := &crd.Database{
+		Spec: crd.DatabaseSpec{
+			Tags: "key= value,   key1=value1",
+		},
+	}
+	tags := gettags(db)
+	assert.NotNil(t, tags)
+	assert.Equal(t, 2, len(tags))
+	assert.Equal(t, "key", *tags[0].Key)
+	assert.Equal(t, "value", *tags[0].Value)
+	assert.Equal(t, "key1", *tags[1].Key)
+	assert.Equal(t, "value1", *tags[1].Value)
+
 }
